@@ -1,9 +1,9 @@
-name: build-wheels
+name: Build and Publish
 
 on:
   push:
     branches:
-      - master
+      - main
     tags:
       - '*'
 
@@ -18,39 +18,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       # see https://cibuildwheel.readthedocs.io/en/stable/changelog/
       # for a list of versions
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.16.5
         env:
-          CIBW_SKIP: "cp27-* cp35-* cp36-* *-win32 pp* *-musllinux* *-manylinux_i686"
+          CIBW_SKIP: "cp27-* cp35-* cp36-* pp* *-musllinux* *-manylinux_i686"
           CIBW_BUILD_VERBOSITY: 3
 
       - name: Display wheels
         shell: bash
         run: |
           ls -lh ./wheelhouse/
-
           ls -lh ./wheelhouse/*.whl
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
+          name: wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
-
-      - name: Publish wheels to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install wheel twine setuptools
-
-          twine upload ./wheelhouse/*.whl
 
       - name: Build sdist
         if: ${{ matrix.os == 'ubuntu-latest' }}
@@ -60,10 +50,24 @@ jobs:
           python3 -m build -s
           ls -l dist/*
 
-      - name: Publish sdist to PyPI
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+      - name: Publish to PyPI
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
-          twine upload dist/simple-sentencepiece-*.tar.gz
+          python3 -m pip install --upgrade pip
+          python3 -m pip install wheel twine setuptools
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            twine upload ./wheelhouse/*.whl dist/*.tar.gz
+          else
+            twine upload ./wheelhouse/*.whl
+          fi
+
+      # - name: Publish sdist to PyPI
+      #   if: ${{ matrix.os == 'ubuntu-latest' }}
+      #   env:
+      #     TWINE_USERNAME: __token__
+      #     TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+      #   run: |
+      #     twine upload dist/simple-sentencepiece-*.tar.gz
