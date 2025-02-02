@@ -56,7 +56,7 @@ class BuildExtension(build_ext):
         if is_windows():
             build_cmd = f"""
          cmake {cmake_args} -B {self.build_temp} -S {ss_dir}
-         cmake --build {self.build_temp} --target install --config Release -- -m
+         cmake --build {self.build_temp} --target install --config Release
             """
             print(f"build command is:\n{build_cmd}")
             ret = os.system(
@@ -66,7 +66,7 @@ class BuildExtension(build_ext):
                 raise Exception("Failed to configure simple sentencepiece")
 
             ret = os.system(
-                f"cmake --build {self.build_temp} --target install --config Release -- -m"  # noqa
+                f"cmake --build {self.build_temp} --target install --config Release"
             )
             if ret != 0:
                 raise Exception("Failed to build and install simple sentencepiece")
@@ -103,7 +103,7 @@ class BuildExtension(build_ext):
 
 
 def get_package_version():
-    with open("CMakeLists.txt") as f:
+    with open("CMakeLists.txt", encoding='utf-8') as f:
         content = f.read()
 
     latest_version = re.search(r"set\(SBPE_VERSION (.*)\)", content).group(1)
@@ -120,13 +120,13 @@ setuptools.setup(
     cmdclass={"build_ext": BuildExtension},
 )
 
-with open("ssentencepiece/python/ssentencepiece/__init__.py", "a") as f:
+with open("ssentencepiece/python/ssentencepiece/__init__.py", "a", encoding='utf-8') as f:
     f.write(f"__version__ = '{get_package_version()}'\n")
 
-with open("ssentencepiece/python/ssentencepiece/__init__.py", "r") as f:
+with open("ssentencepiece/python/ssentencepiece/__init__.py", "r", encoding='utf-8') as f:
     lines = f.readlines()
 
-with open("ssentencepiece/python/ssentencepiece/__init__.py", "w") as f:
+with open("ssentencepiece/python/ssentencepiece/__init__.py", "w", encoding='utf-8') as f:
     for line in lines:
         if "__version__" in line:
             f.write(line)

@@ -1,0 +1,48 @@
+name: Windows Static Library
+
+on:
+  push:
+    branches: [ dev ]
+  pull_request:
+    branches: [ dev ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        install: >-
+          mingw-w64-ucrt-x86_64-gcc
+          mingw-w64-ucrt-x86_64-cmake
+          mingw-w64-ucrt-x86_64-ninja
+
+    - name: Build Static Library
+      shell: cmd
+      run: |
+        cmake -B build-static -G "Visual Studio 17 2022" -A x64 ^
+          -DCMAKE_BUILD_TYPE=Release ^
+          -DBUILD_SHARED_LIBS=OFF ^
+          -DSBPE_BUILD_PYTHON=OFF ^
+          -DCMAKE_INSTALL_PREFIX="%CD%/install" ^
+          -DCMAKE_LIBRARY_OUTPUT_DIRECTORY="%CD%/install/lib" ^
+          -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY="%CD%/install/lib" ^
+          -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="%CD%/install/bin"
+        cmake --build build-static --config Release
+        cmake --install build-static --config Release
+        mkdir install\include
+        xcopy /Y /I ssentencepiece\csrc\*.h install\include\
+
+    - name: Upload static library
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-static-lib
+        path: |
+          install/**/*
+        retention-days: 1
