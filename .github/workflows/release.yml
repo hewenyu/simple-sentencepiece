@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   windows:
-    uses: ./.github/workflows/windows-build.yml@dev
+    uses: ./.github/workflows/windows-build.yml
 
   upload-release:
     needs: build
