@@ -1,0 +1,89 @@
+name: macOS Build
+
+on:
+  workflow_call:
+
+jobs:
+  static-lib:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        brew install cmake ninja
+
+    - name: Build Static Library
+      run: |
+        cmake -B build-static -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DSBPE_BUILD_PYTHON=OFF \
+          -DCMAKE_INSTALL_PREFIX="$PWD/install" \
+          -DCMAKE_LIBRARY_OUTPUT_DIRECTORY="$PWD/install/lib" \
+          -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY="$PWD/install/lib" \
+          -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="$PWD/install/bin"
+        cmake --build build-static --config Release
+        cmake --install build-static --config Release
+        mkdir -p install/include
+        cp ssentencepiece/csrc/*.h install/include/
+
+    - name: Upload static library
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-static-lib
+        path: |
+          install/**/*
+        retention-days: 1
+
+  python-package:
+    needs: static-lib
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        brew install cmake ninja
+        python -m pip install --upgrade pip
+        pip install wheel setuptools cmake ninja pytest
+
+    - name: Build Python Package
+      env:
+        PYTHONIOENCODING: utf-8
+        PYTHONUTF8: 1
+      run: |
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DSBPE_ENABLE_TESTS=ON \
+          -DCMAKE_CXX_STANDARD=14 \
+          -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+          -DCMAKE_LIBRARY_OUTPUT_DIRECTORY="$PWD/build/lib" \
+          -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="$PWD/build/bin"
+        cmake --build build --config Release
+    
+    - name: Build wheel
+      env:
+        PYTHONIOENCODING: utf-8
+        PYTHONUTF8: 1
+        CMAKE_GENERATOR: Ninja
+      run: |
+        python setup.py bdist_wheel
+        ls -la dist
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels-macos-${{ matrix.python-version }}
+        path: |
+          dist/*.whl
+        retention-days: 1 

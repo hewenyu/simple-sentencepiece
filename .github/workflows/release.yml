@@ -12,14 +12,20 @@ jobs:
   windows:
     uses: ./.github/workflows/windows-build.yml
 
+  linux:
+    uses: ./.github/workflows/linux-build.yml
+
+  macos:
+    uses: ./.github/workflows/mac-build.yml
+
   upload-release:
-    needs: [windows]
+    needs: [windows, linux, macos]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: wheels-windows-*
+          pattern: wheels-*
           path: dist
           merge-multiple: true
 
