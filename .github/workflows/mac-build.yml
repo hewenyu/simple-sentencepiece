@@ -1,6 +1,12 @@
 name: macOS Build
 
 on:
+  push:
+    branches:
+      - dev-linux
+  pull_request:
+    branches:
+      - dev-linux
   workflow_call:
 
 jobs:
