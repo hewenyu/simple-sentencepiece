@@ -17,11 +17,11 @@ jobs:
 
     - name: Install dependencies
       run: |
-        brew install cmake ninja
+        brew install cmake
 
     - name: Build Static Library
       run: |
-        cmake -B build-static -G Ninja \
+        cmake -B build-static \
           -DCMAKE_BUILD_TYPE=Release \
           -DBUILD_SHARED_LIBS=OFF \
           -DSBPE_BUILD_PYTHON=OFF \
@@ -59,16 +59,17 @@ jobs:
 
     - name: Install dependencies
       run: |
-        brew install cmake ninja
+        brew install cmake
         python -m pip install --upgrade pip
-        pip install wheel setuptools cmake ninja pytest
+        pip install wheel setuptools cmake pytest
 
     - name: Build Python Package
       env:
         PYTHONIOENCODING: utf-8
         PYTHONUTF8: 1
+        MACOSX_DEPLOYMENT_TARGET: "10.9"
       run: |
-        cmake -B build -G Ninja \
+        cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DSBPE_ENABLE_TESTS=ON \
           -DCMAKE_CXX_STANDARD=14 \
@@ -81,7 +82,7 @@ jobs:
       env:
         PYTHONIOENCODING: utf-8
         PYTHONUTF8: 1
-        CMAKE_GENERATOR: Ninja
+        MACOSX_DEPLOYMENT_TARGET: "10.9"
       run: |
         python setup.py bdist_wheel
         ls -la dist
