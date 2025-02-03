@@ -1,0 +1,84 @@
+name: Linux Build
+
+on:
+  # push:
+  #   branches:
+  #     - dev-linux
+  # pull_request:
+  #   branches:
+  #     - dev-linux
+  workflow_call:
+
+jobs:
+  static-lib:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build build-essential
+
+    - name: Build Static Library
+      run: |
+        cmake -B build-static \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DSBPE_BUILD_PYTHON=OFF \
+          -DCMAKE_INSTALL_PREFIX="$PWD/install" \
+          -DCMAKE_LIBRARY_OUTPUT_DIRECTORY="$PWD/install/lib" \
+          -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY="$PWD/install/lib" \
+          -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="$PWD/install/bin"
+        cmake --build build-static --config Release
+        cmake --install build-static --config Release
+        mkdir -p install/include
+        cp ssentencepiece/csrc/*.h install/include/
+
+    - name: Upload static library
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-static-lib
+        path: |
+          install/**/*
+        retention-days: 1
+
+  python-package:
+    needs: static-lib
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build build-essential
+        python -m pip install --upgrade pip
+        pip install wheel setuptools cmake ninja pytest build
+
+    - name: Build Python Package
+      env:
+        PYTHONIOENCODING: utf-8
+        PYTHONUTF8: 1
+        CMAKE_BUILD_PARALLEL_LEVEL: 2
+      run: |
+        # 使用 python -m build 替代直接调用 setup.py
+        python -m build --wheel --no-isolation
+        ls -la dist
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels-linux-${{ matrix.python-version }}
+        path: |
+          dist/*.whl
+        retention-days: 1 
