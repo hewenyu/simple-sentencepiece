@@ -1,4 +1,4 @@
-name: Windows Build
+name: macOS Build
 
 on:
   push:
@@ -11,24 +11,17 @@ on:
 
 jobs:
   static-lib:
-    runs-on: windows-latest
+    runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up MSYS2
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: UCRT64
-        update: true
-        install: >-
-          mingw-w64-ucrt-x86_64-gcc
-          mingw-w64-ucrt-x86_64-cmake
-          mingw-w64-ucrt-x86_64-ninja
+    - name: Install dependencies
+      run: |
+        brew install cmake
 
     - name: Build Static Library
-      shell: msys2 {0}
       run: |
-        cmake -B build-static -G Ninja \
+        cmake -B build-static \
           -DCMAKE_BUILD_TYPE=Release \
           -DBUILD_SHARED_LIBS=OFF \
           -DSBPE_BUILD_PYTHON=OFF \
@@ -44,18 +37,17 @@ jobs:
     - name: Upload static library
       uses: actions/upload-artifact@v4
       with:
-        name: windows-static-lib
+        name: macos-static-lib
         path: |
           install/**/*
         retention-days: 1
 
   python-package:
     needs: static-lib
-    runs-on: windows-latest
+    runs-on: macos-latest
     strategy:
       matrix:
         python-version: ['3.10', '3.11']
-        arch: [x64]
 
     steps:
     - uses: actions/checkout@v4
@@ -64,30 +56,20 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        architecture: ${{ matrix.arch }}
-
-    - name: Set up MSYS2
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: UCRT64
-        update: true
-        install: >-
-          mingw-w64-ucrt-x86_64-gcc
-          mingw-w64-ucrt-x86_64-cmake
-          mingw-w64-ucrt-x86_64-ninja
 
     - name: Install dependencies
       run: |
+        brew install cmake
         python -m pip install --upgrade pip
-        pip install wheel setuptools cmake ninja pytest
+        pip install wheel setuptools cmake pytest
 
     - name: Build Python Package
-      shell: msys2 {0}
       env:
         PYTHONIOENCODING: utf-8
         PYTHONUTF8: 1
+        MACOSX_DEPLOYMENT_TARGET: "10.9"
       run: |
-        cmake -B build -G Ninja \
+        cmake -B build \
           -DCMAKE_BUILD_TYPE=Release \
           -DSBPE_ENABLE_TESTS=ON \
           -DCMAKE_CXX_STANDARD=14 \
@@ -96,27 +78,19 @@ jobs:
           -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="$PWD/build/bin"
         cmake --build build --config Release
     
-    - name: List build files
-      shell: msys2 {0}
-      run: |
-        ls -la build
-        ls -la build/lib
-        ls -la build/Release || echo "No Release directory"
-
     - name: Build wheel
-      shell: msys2 {0}
       env:
         PYTHONIOENCODING: utf-8
         PYTHONUTF8: 1
-        CMAKE_GENERATOR: Ninja
+        MACOSX_DEPLOYMENT_TARGET: "10.9"
       run: |
-        "${pythonLocation}/python.exe" setup.py bdist_wheel
+        python setup.py bdist_wheel
         ls -la dist
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-windows-${{ matrix.python-version }}-${{ matrix.arch }}
+        name: wheels-macos-${{ matrix.python-version }}
         path: |
           dist/*.whl
         retention-days: 1 
